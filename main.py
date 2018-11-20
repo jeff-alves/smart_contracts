@@ -5,32 +5,22 @@ import pprint
 from web3 import Web3
 from solc import compile_source, install_solc
 
-solc_version='v0.4.24'
+def set_solc(version):
+    solc_path = os.path.join(os.path.expanduser("~"), '.py-solc/solc-' + version + '/bin')
+    if not os.path.isdir(solc_path):
+        install_solc(version)
 
-home = os.path.expanduser("~")
-solc_path = os.path.join(home, '.py-solc/solc-'+solc_version+'/bin')
+    os_path = os.environ["PATH"].split(':')
+    if solc_path not in os_path:
+        os_path = list(filter(lambda x: '.py-solc/solc-' not in x, os_path))
+        os_path.append(solc_path)
+        os.environ["PATH"] = ':'.join(os_path)
 
-if not os.path.isdir(solc_path):
-    install_solc(solc_version)
-
-os_path = os.environ["PATH"].split(':')
-if solc_path not in os_path:
-    os_path.append(solc_path)
-    os.environ["PATH"] = ':'.join(os_path)
-
-def compile_source_file(file_path):
+def compile_source_file(file_path, solc_version):
     with open(file_path, 'r') as f:
         source = f.read()
+    set_solc(solc_version)
     return compile_source(source)
-
-
-def deploy_contract2(w3, contract_interface):
-    tx_hash = w3.eth.contract(
-        abi=contract_interface['abi'],
-        bytecode=contract_interface['bin']).deploy()
-
-    address = w3.eth.getTransactionReceipt(tx_hash)['contractAddress']
-    return address
 
 def deploy_contract(w3, contract_interface):
     # Instantiate and deploy contract
@@ -57,8 +47,8 @@ def wait_for_receipt(w3, tx_hash, poll_interval):
 
 
 contract_path = input("Digite o caminho/nome do contrato [sol/greeter.sol]: ") or 'sol/greeter.sol'
-
-compiled_sol = compile_source_file(contract_path)
+contract_solc_v = input("Qual versão do solc deseja usar? [v0.4.24]: ") or 'v0.4.24'
+compiled_sol = compile_source_file(contract_path, contract_solc_v)
 contract_id, contract_interface = compiled_sol.popitem()
 
 w3 = Web3(Web3.EthereumTesterProvider())
@@ -99,8 +89,3 @@ else:
 
 # Display the new greeting value
 print('\n#### Updated contract greeting: {}\n'.format(contr.functions.greet().call()))
-
-# When issuing a lot of reads, try this more concise reader:
-#from web3.contract import ConciseContract
-# reader = ConciseContract(contr)
-# assert reader.greet() == "Nihao"
